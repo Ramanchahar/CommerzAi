@@ -27,6 +27,10 @@ public class ProfileFragment extends Fragment {
         userEmail = view.findViewById(R.id.userEmail);
         authAction = view.findViewById(R.id.logout); // reuse the logout TextView
 
+        TextView editProfile = view.findViewById(R.id.editProfile);
+        editProfile.setOnClickListener(v -> showEditProfileDialog());
+
+
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
 
         if (currentUser != null) {
@@ -107,5 +111,52 @@ public class ProfileFragment extends Fragment {
 
         dialog.show();
     }
+
+    private void showEditProfileDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_edit_profile, null);
+        builder.setView(dialogView);
+        AlertDialog dialog = builder.create();
+
+        EditText newUsernameInput = dialogView.findViewById(R.id.newUsernameInput);
+        EditText newPasswordInput = dialogView.findViewById(R.id.newPasswordInput);
+        Button updateBtn = dialogView.findViewById(R.id.updateBtn);
+
+        updateBtn.setOnClickListener(v -> {
+            String newUsername = newUsernameInput.getText().toString().trim();
+            String newPassword = newPasswordInput.getText().toString().trim();
+
+            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+            if (user == null) {
+                Toast.makeText(getContext(), "Not logged in", Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+                return;
+            }
+
+            DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("Users").child(user.getUid());
+
+            // Update username
+            if (!newUsername.isEmpty()) {
+                userRef.child("username").setValue(newUsername);
+            }
+
+            // Update password (if provided)
+            if (!newPassword.isEmpty()) {
+                user.updatePassword(newPassword)
+                        .addOnCompleteListener(task -> {
+                            if (!task.isSuccessful()) {
+                                Toast.makeText(getContext(), "Password update failed", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+            }
+
+            Toast.makeText(getContext(), "Profile updated!", Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+            getActivity().recreate(); // refresh the profile view
+        });
+
+        dialog.show();
+    }
+
 }
 

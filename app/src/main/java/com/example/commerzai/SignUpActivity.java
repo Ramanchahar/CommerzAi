@@ -42,6 +42,7 @@ public class SignUpActivity extends AppCompatActivity {
             String email = emailInput.getText().toString().trim();
             String password = passwordInput.getText().toString().trim();
 
+            Log.d("DEBUG", "Sign up button clicked");
             if (TextUtils.isEmpty(username) || TextUtils.isEmpty(email) || TextUtils.isEmpty(password)) {
                 Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
             } else {
@@ -94,7 +95,6 @@ public class SignUpActivity extends AppCompatActivity {
             HashMap<String, String> userData = new HashMap<>();
             userData.put("username", username);
             userData.put("email", email);
-
             userRef.child(userId).setValue(userData)
                     .addOnCompleteListener(dbTask -> {
                         if (dbTask.isSuccessful()) {
