@@ -132,12 +132,14 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
      * Replace all products with new ones
      */
     public void updateProducts(List<ShoppingResult> newProducts) {
-        this.productList.clear();
-        if (newProducts != null) {
-            this.productList.addAll(newProducts);
+        //productList.clear();
+        if (newProducts == null) {
+            productList.addAll(new ArrayList<>(newProducts));
         }
+        //Log.d("ProductAdapter", "Final productList size: " + productList.size());
         notifyDataSetChanged();
     }
+
 
     /**
      * Add more products to the existing list (for pagination/infinite scrolling)

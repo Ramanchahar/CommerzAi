@@ -1,6 +1,7 @@
 package com.example.commerzai;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,11 +30,13 @@ import java.util.List;
 public class SavedFragment extends Fragment {
     private RecyclerView savedItemsRecyclerView;
     private ProductAdapter productAdapter;
-    private List<ShoppingResult> savedProducts;
+    private final List<ShoppingResult> savedProducts = new ArrayList<>();
     private DatabaseReference savedProductsRef;
     private FirebaseAuth mAuth;
     private ProgressBar progressBar;
     private LinearLayout emptyStateLayout;
+
+    private static final String TAG = "SavedFragment";
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -43,13 +46,9 @@ public class SavedFragment extends Fragment {
         progressBar = view.findViewById(R.id.progressBar);
         emptyStateLayout = view.findViewById(R.id.emptyStateLayout);
 
-        // Set up RecyclerView with GridLayoutManager
         savedItemsRecyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
 
-        savedProducts = new ArrayList<>();
-        productAdapter = new ProductAdapter(getContext(), savedProducts, product -> {
-            // Handle product click if needed
-        });
+        productAdapter = new ProductAdapter(getContext(), savedProducts, product -> {});
         savedItemsRecyclerView.setAdapter(productAdapter);
 
         mAuth = FirebaseAuth.getInstance();
@@ -61,6 +60,7 @@ public class SavedFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+        Log.d(TAG, "onResume() called");
         loadSavedProducts();
     }
 
@@ -68,33 +68,48 @@ public class SavedFragment extends Fragment {
         if (mAuth.getCurrentUser() != null) {
             showLoading();
             String userId = mAuth.getCurrentUser().getUid();
-            
+            Log.d(TAG, "Current userId: " + userId);
+
             savedProductsRef.orderByChild("userId").equalTo(userId)
-                    .addValueEventListener(new ValueEventListener() {
+                    .addListenerForSingleValueEvent(new ValueEventListener() {
                         @Override
                         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                            Log.d(TAG, "Entered onDataChange(), children count: " + dataSnapshot.getChildrenCount());
+
                             savedProducts.clear();
                             for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                                Log.d(TAG, "Raw snapshot: " + snapshot);
                                 SavedProduct savedProduct = snapshot.getValue(SavedProduct.class);
-                                if (savedProduct != null) {
-                                    ShoppingResult product = new ShoppingResult();
-                                    product.setTitle(savedProduct.getTitle());
-                                    product.setPrice(savedProduct.getPrice());
-                                    product.setSource(savedProduct.getSource());
-                                    product.setThumbnail(savedProduct.getThumbnail());
-                                    product.setLink(savedProduct.getLink());
-                                    product.setRating(savedProduct.getRating());
-                                    product.setReviews(savedProduct.getReviews());
-                                    savedProducts.add(product);
+                                if (savedProduct == null) {
+                                    Log.w(TAG, "savedProduct is null — possible model mismatch");
+                                    continue;
                                 }
+
+                                Log.d(TAG, "Parsed title: " + savedProduct.getTitle());
+
+                                ShoppingResult product = new ShoppingResult();
+                                product.setTitle(savedProduct.getTitle());
+                                product.setPrice(savedProduct.getPrice());
+                                product.setSource(savedProduct.getSource());
+                                product.setThumbnail(savedProduct.getThumbnail());
+                                product.setLink(savedProduct.getLink());
+                                product.setRating(savedProduct.getRating());
+                                product.setReviews(savedProduct.getReviews());
+                                savedProducts.add(product);
                             }
+
+                            Log.d(TAG, "Total products loaded: " + savedProducts.size());
+                            Toast.makeText(getContext(), "Loaded: " + savedProducts.size(), Toast.LENGTH_SHORT).show();
+
                             productAdapter.updateProducts(savedProducts);
+                            Log.d(TAG, "Total products loaded: " + savedProducts.size());
                             updateUI();
                         }
 
                         @Override
                         public void onCancelled(@NonNull DatabaseError databaseError) {
                             hideLoading();
+                            Log.e(TAG, "Firebase error: " + databaseError.getMessage());
                             Toast.makeText(getContext(), "Failed to load saved products", Toast.LENGTH_SHORT).show();
                         }
                     });
@@ -108,26 +123,31 @@ public class SavedFragment extends Fragment {
         progressBar.setVisibility(View.VISIBLE);
         savedItemsRecyclerView.setVisibility(View.GONE);
         emptyStateLayout.setVisibility(View.GONE);
+        Log.d(TAG, "showLoading() called");
     }
 
     private void hideLoading() {
         progressBar.setVisibility(View.GONE);
+        Log.d(TAG, "hideLoading() called");
     }
 
     private void showEmptyState() {
         progressBar.setVisibility(View.GONE);
         savedItemsRecyclerView.setVisibility(View.GONE);
         emptyStateLayout.setVisibility(View.VISIBLE);
+        Log.d(TAG, "showEmptyState() called");
     }
 
     private void showResults() {
         progressBar.setVisibility(View.GONE);
         emptyStateLayout.setVisibility(View.GONE);
         savedItemsRecyclerView.setVisibility(View.VISIBLE);
+        Log.d(TAG, "showResults() called");
     }
 
     private void updateUI() {
         hideLoading();
+        Log.d(TAG, "savedProducts size in updateUI: " + savedProducts.size());
         if (savedProducts.isEmpty()) {
             showEmptyState();
         } else {
