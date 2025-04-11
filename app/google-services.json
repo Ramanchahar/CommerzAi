@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "816618515690",
+    "project_id": "commerzai",
+    "storage_bucket": "commerzai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:816618515690:android:b49a88176268d935753b93",
+        "android_client_info": {
+          "package_name": "com.example.commerzai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3yx_tzaWGa9VCAjKQPOBPrO-CCQh2LDY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
