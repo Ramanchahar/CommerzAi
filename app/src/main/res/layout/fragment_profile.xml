@@ -62,16 +62,6 @@
                 android:text="Edit Profile"
                 android:textSize="16sp" />
 
-            <TextView
-                android:id="@+id/myOrders"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="?attr/selectableItemBackground"
-                android:drawableStart="@drawable/ic_shopping_bag"
-                android:drawablePadding="16dp"
-                android:padding="16dp"
-                android:text="My Orders"
-                android:textSize="16sp" />
 
             <TextView
                 android:id="@+id/settings"
