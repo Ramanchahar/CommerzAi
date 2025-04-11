@@ -4,9 +4,11 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.RatingBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -15,7 +17,11 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.bumptech.glide.request.RequestOptions;
 import com.example.commerzai.R;
+import com.example.commerzai.models.SavedProduct;
 import com.example.commerzai.models.ShoppingResult;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +30,8 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
     private List<ShoppingResult> productList;
     private Context context;
     private OnProductClickListener listener;
+    private DatabaseReference savedProductsRef;
+    private FirebaseAuth mAuth;
 
     public interface OnProductClickListener {
         void onProductClick(ShoppingResult product);
@@ -33,6 +41,8 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
         this.context = context;
         this.productList = productList != null ? productList : new ArrayList<>();
         this.listener = listener;
+        this.mAuth = FirebaseAuth.getInstance();
+        this.savedProductsRef = FirebaseDatabase.getInstance().getReference("saved_products");
     }
 
     @NonNull
@@ -78,10 +88,31 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
                     .into(holder.imageView);
         }
 
-        // Set click listener
+        // Set click listener for the entire item
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onProductClick(product);
+            }
+        });
+
+        // Set click listener for the like button
+        holder.likeButton.setOnClickListener(v -> {
+            if (mAuth.getCurrentUser() != null) {
+                String userId = mAuth.getCurrentUser().getUid();
+                SavedProduct savedProduct = new SavedProduct(product, userId);
+                String productId = savedProductsRef.push().getKey();
+                savedProduct.setId(productId);
+                
+                savedProductsRef.child(productId).setValue(savedProduct)
+                        .addOnSuccessListener(aVoid -> {
+                            holder.likeButton.setImageResource(R.drawable.ic_favorite);
+                            Toast.makeText(context, "Product saved!", Toast.LENGTH_SHORT).show();
+                        })
+                        .addOnFailureListener(e -> {
+                            Toast.makeText(context, "Failed to save product", Toast.LENGTH_SHORT).show();
+                        });
+            } else {
+                Toast.makeText(context, "Please sign in to save products", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -137,6 +168,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
         TextView sourceTextView;
         TextView reviewsTextView;
         RatingBar ratingBar;
+        ImageButton likeButton;
 
         ProductViewHolder(View itemView) {
             super(itemView);
@@ -146,6 +178,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             sourceTextView = itemView.findViewById(R.id.productSourceTextView);
             reviewsTextView = itemView.findViewById(R.id.productReviewsTextView);
             ratingBar = itemView.findViewById(R.id.productRatingBar);
+            likeButton = itemView.findViewById(R.id.likeButton);
         }
     }
 }
