@@ -133,27 +133,65 @@ public class ProfileFragment extends Fragment {
                 return;
             }
 
-            DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("Users").child(user.getUid());
+            DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("Users");
 
-            // Update username
+            // Check if new username exists (excluding current user)
             if (!newUsername.isEmpty()) {
-                userRef.child("username").setValue(newUsername);
-            }
+                userRef.orderByChild("username").equalTo(newUsername)
+                        .addListenerForSingleValueEvent(new ValueEventListener() {
+                            @Override
+                            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                boolean usernameTaken = false;
+                                for (DataSnapshot userSnap : snapshot.getChildren()) {
+                                    if (!userSnap.getKey().equals(user.getUid())) {
+                                        usernameTaken = true;
+                                        break;
+                                    }
+                                }
 
-            // Update password (if provided)
-            if (!newPassword.isEmpty()) {
-                user.updatePassword(newPassword)
-                        .addOnCompleteListener(task -> {
-                            if (!task.isSuccessful()) {
-                                Toast.makeText(getContext(), "Password update failed", Toast.LENGTH_SHORT).show();
+                                if (usernameTaken) {
+                                    Toast.makeText(getContext(), "Username already taken", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    // ✅ Update username
+                                    userRef.child(user.getUid()).child("username").setValue(newUsername);
+
+                                    // ✅ Update password if needed
+                                    if (!newPassword.isEmpty()) {
+                                        user.updatePassword(newPassword)
+                                                .addOnCompleteListener(task -> {
+                                                    if (!task.isSuccessful()) {
+                                                        Toast.makeText(getContext(), "Password update failed", Toast.LENGTH_SHORT).show();
+                                                    }
+                                                });
+                                    }
+
+                                    Toast.makeText(getContext(), "Profile updated!", Toast.LENGTH_SHORT).show();
+                                    dialog.dismiss();
+                                    getActivity().recreate();
+                                }
+                            }
+
+                            @Override
+                            public void onCancelled(@NonNull DatabaseError error) {
+                                Toast.makeText(getContext(), "Database error", Toast.LENGTH_SHORT).show();
                             }
                         });
+            } else {
+                // If username is empty, skip checking and update password only
+                if (!newPassword.isEmpty()) {
+                    user.updatePassword(newPassword)
+                            .addOnCompleteListener(task -> {
+                                if (!task.isSuccessful()) {
+                                    Toast.makeText(getContext(), "Password update failed", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                }
+                Toast.makeText(getContext(), "Profile updated!", Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+                getActivity().recreate();
             }
-
-            Toast.makeText(getContext(), "Profile updated!", Toast.LENGTH_SHORT).show();
-            dialog.dismiss();
-            getActivity().recreate(); // refresh the profile view
         });
+
 
         dialog.show();
     }
