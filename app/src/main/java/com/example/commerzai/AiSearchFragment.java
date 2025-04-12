@@ -256,7 +256,7 @@ public class AiSearchFragment extends Fragment implements ProductAdapter.OnProdu
                             productAdapter.appendProducts(results);
                         } else {
                             // Replace existing results
-                            productAdapter.updateProducts(results);
+                            productAdapter.updateProducts(results, true);
                         }
 
                         showResults();
@@ -437,7 +437,7 @@ public class AiSearchFragment extends Fragment implements ProductAdapter.OnProdu
         if (productList.isEmpty()) {
             // Use contextual mock data instead of showing empty results
             List<ShoppingResult> mockData = getContextualMockResults();
-            productAdapter.updateProducts(mockData);
+            productAdapter.updateProducts(mockData, true);
             showResults();
 
             Toast.makeText(getContext(), "No products found. Showing recommended products instead.", Toast.LENGTH_SHORT)
@@ -451,7 +451,7 @@ public class AiSearchFragment extends Fragment implements ProductAdapter.OnProdu
         if (productList.isEmpty()) {
             // Only load mock data on error if we don't already have results
             List<ShoppingResult> mockData = getContextualMockResults();
-            productAdapter.updateProducts(mockData);
+            productAdapter.updateProducts(mockData, true);
             showResults();
         }
     }
