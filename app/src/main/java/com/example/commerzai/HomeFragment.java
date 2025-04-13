@@ -5,7 +5,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -59,9 +58,29 @@ public class HomeFragment extends Fragment {
         savedRef = FirebaseDatabase.getInstance().getReference("saved_products");
         allProductsRef = FirebaseDatabase.getInstance().getReference("products");
 
-        loadLocalDataThenQueryAPI();
+        cleanUpOldRandomProductsAndLoad();
 
         return view;
+    }
+
+    private void cleanUpOldRandomProductsAndLoad() {
+        allProductsRef.orderByChild("source").equalTo("TEMP_RANDOM_API")
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        Log.d(TAG, "Deleting previous TEMP_RANDOM_API products: " + snapshot.getChildrenCount());
+                        for (DataSnapshot data : snapshot.getChildren()) {
+                            data.getRef().removeValue();
+                        }
+                        loadLocalDataThenQueryAPI();
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.e(TAG, "Failed to delete temp data: " + error.getMessage());
+                        loadLocalDataThenQueryAPI();
+                    }
+                });
     }
 
     private void loadLocalDataThenQueryAPI() {
@@ -94,6 +113,7 @@ public class HomeFragment extends Fragment {
                                 Log.d(TAG, "API products fetched: " + apiResults.size());
 
                                 for (ShoppingResult result : apiResults) {
+                                    result.setSource("TEMP_RANDOM_API");
                                     String key = allProductsRef.push().getKey();
                                     allProductsRef.child(key).setValue(result);
                                 }
@@ -118,24 +138,32 @@ public class HomeFragment extends Fragment {
     }
 
     private void displayFinalRecommendation() {
-        Map<String, Integer> keywordFreq = extractKeywordsFromSavedTitles(savedList);
-        Log.d(TAG, "Extracted keywords from saved:");
-        for (String k : keywordFreq.keySet()) {
-            Log.d(TAG, k + " -> " + keywordFreq.get(k));
-        }
+        List<ShoppingResult> recommended;
 
-        List<ShoppingResult> recommended = selectProductsByTitleKeywords(productPool, keywordFreq, MAX_RECOMMENDED);
-
-        Set<String> usedTitles = new HashSet<>();
-        for (ShoppingResult p : recommended) usedTitles.add(p.getTitle());
-
-        Collections.shuffle(productPool);
-        for (ShoppingResult p : productPool) {
-            if (!usedTitles.contains(p.getTitle())) {
-                recommended.add(p);
-                usedTitles.add(p.getTitle());
+        if (savedList.isEmpty()) {
+            Log.d(TAG, "No saved items — fallback to random recommendations.");
+            Collections.shuffle(productPool);
+            recommended = productPool.subList(0, Math.min(productPool.size(), TOTAL_ITEMS));
+        } else {
+            Map<String, Integer> keywordFreq = extractKeywordsFromSavedTitles(savedList);
+            Log.d(TAG, "Extracted keywords from saved:");
+            for (String k : keywordFreq.keySet()) {
+                Log.d(TAG, k + " -> " + keywordFreq.get(k));
             }
-            if (recommended.size() >= TOTAL_ITEMS) break;
+
+            recommended = selectProductsByTitleKeywords(productPool, keywordFreq, MAX_RECOMMENDED);
+
+            Set<String> usedTitles = new HashSet<>();
+            for (ShoppingResult p : recommended) usedTitles.add(p.getTitle());
+
+            Collections.shuffle(productPool);
+            for (ShoppingResult p : productPool) {
+                if (!usedTitles.contains(p.getTitle())) {
+                    recommended.add(p);
+                    usedTitles.add(p.getTitle());
+                }
+                if (recommended.size() >= TOTAL_ITEMS) break;
+            }
         }
 
         Log.d(TAG, "Final For You list size: " + recommended.size());

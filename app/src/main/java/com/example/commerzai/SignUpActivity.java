@@ -1,86 +1,119 @@
 package com.example.commerzai;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.widget.Button;
-import android.widget.TextView;
-import android.widget.Toast;
-
+import android.util.Log;
+import android.widget.*;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.material.textfield.TextInputEditText;
-import com.google.firebase.auth.FirebaseAuth;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.*;
+import com.google.firebase.database.*;
+
+import java.util.HashMap;
 
 public class SignUpActivity extends AppCompatActivity {
-    private TextInputEditText editTextEmail, editTextPassword, editTextConfirmPassword;
-    private Button buttonSignUp;
-    private TextView textViewLogin;
-    private FirebaseAuth mAuth;
+
+    private static final String TAG = "SignUpActivity";
+
+    EditText usernameInput, passwordInput, emailInput;
+    Button signupBtn;
+
+    FirebaseAuth mAuth;
+    DatabaseReference userRef;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_signup);
+        setContentView(R.layout.activity_sign_up);
+
+        usernameInput = findViewById(R.id.usernameInput);
+        passwordInput = findViewById(R.id.passwordInput);
+        emailInput = findViewById(R.id.emailInput);
+        signupBtn = findViewById(R.id.signupBtn);
 
         mAuth = FirebaseAuth.getInstance();
+        userRef = FirebaseDatabase.getInstance().getReference("Users");
 
-        editTextEmail = findViewById(R.id.editTextEmail);
-        editTextPassword = findViewById(R.id.editTextPassword);
-        editTextConfirmPassword = findViewById(R.id.editTextConfirmPassword);
-        buttonSignUp = findViewById(R.id.buttonSignUp);
-        textViewLogin = findViewById(R.id.textViewLogin);
+        signupBtn.setOnClickListener(v -> {
+            String username = usernameInput.getText().toString().trim();
+            String email = emailInput.getText().toString().trim();
+            String password = passwordInput.getText().toString().trim();
 
-        buttonSignUp.setOnClickListener(v -> signUpUser());
-        textViewLogin.setOnClickListener(v -> {
-            Intent intent = new Intent(SignUpActivity.this, LoginActivity.class);
-            startActivity(intent);
-            finish();
+            Log.d("DEBUG", "Sign up button clicked");
+            if (TextUtils.isEmpty(username) || TextUtils.isEmpty(email) || TextUtils.isEmpty(password)) {
+                Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
+            } else {
+                checkUsernameAndRegister(username, email, password);
+            }
         });
     }
 
-    private void signUpUser() {
-        String email = editTextEmail.getText().toString().trim();
-        String password = editTextPassword.getText().toString().trim();
-        String confirmPassword = editTextConfirmPassword.getText().toString().trim();
+    private void checkUsernameAndRegister(String username, String email, String password) {
+        userRef.orderByChild("username").equalTo(username).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists()) {
+                    Toast.makeText(SignUpActivity.this, "Username already taken", Toast.LENGTH_SHORT).show();
+                } else {
+                    registerUser(username, email, password);
+                }
+            }
 
-        if (TextUtils.isEmpty(email)) {
-            editTextEmail.setError("Email is required");
-            return;
-        }
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(SignUpActivity.this, "Database error", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
 
-        if (TextUtils.isEmpty(password)) {
-            editTextPassword.setError("Password is required");
-            return;
-        }
-
-        if (TextUtils.isEmpty(confirmPassword)) {
-            editTextConfirmPassword.setError("Please confirm your password");
-            return;
-        }
-
-        if (!password.equals(confirmPassword)) {
-            editTextConfirmPassword.setError("Passwords do not match");
-            return;
-        }
-
-        if (password.length() < 6) {
-            editTextPassword.setError("Password must be at least 6 characters");
-            return;
-        }
-
+    private void registerUser(String username, String email, String password) {
         mAuth.createUserWithEmailAndPassword(email, password)
-                .addOnCompleteListener(this, task -> {
-                    if (task.isSuccessful()) {
-                        Toast.makeText(SignUpActivity.this, "Registration successful", Toast.LENGTH_SHORT).show();
-                        // Navigate to main activity
-                        Intent intent = new Intent(SignUpActivity.this, MainActivity.class);
-                        startActivity(intent);
-                        finish();
-                    } else {
-                        Toast.makeText(SignUpActivity.this, "Registration failed: " + task.getException().getMessage(),
-                                Toast.LENGTH_SHORT).show();
+                .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<AuthResult> task) {
+                        if (task.isSuccessful()) {
+                            Log.d(TAG, "createUserWithEmail:success");
+                            FirebaseUser user = mAuth.getCurrentUser();
+                            saveUserDataToDatabase(user, username, email);
+                            updateUI(user);
+                        } else {
+                            Log.w(TAG, "createUserWithEmail:failure", task.getException());
+                            Toast.makeText(SignUpActivity.this, "Authentication failed.",
+                                    Toast.LENGTH_SHORT).show();
+                            updateUI(null);
+                        }
                     }
                 });
     }
-} 
+
+    private void saveUserDataToDatabase(FirebaseUser firebaseUser, String username, String email) {
+        if (firebaseUser != null) {
+            String userId = firebaseUser.getUid();
+            HashMap<String, String> userData = new HashMap<>();
+            userData.put("username", username);
+            userData.put("email", email);
+            userRef.child(userId).setValue(userData)
+                    .addOnCompleteListener(dbTask -> {
+                        if (dbTask.isSuccessful()) {
+                            Toast.makeText(SignUpActivity.this, "Signup successful!", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(SignUpActivity.this, "Failed to save user data", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+        }
+    }
+
+    private void updateUI(FirebaseUser user) {
+        if (user != null) {
+            // You could redirect to ProfileActivity or MainActivity
+            finish(); // for now, just close the signup screen
+        } else {
+            // Keep user on current screen, or show retry UI
+        }
+    }
+}
+
+
