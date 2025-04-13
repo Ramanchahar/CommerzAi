@@ -138,7 +138,9 @@ public class SavedFragment extends Fragment {
                             }
 
                             Log.d(TAG, "Total products loaded: " + savedProducts.size());
-                            //Toast.makeText(getContext(), "Loaded: " + savedProducts.size(), Toast.LENGTH_SHORT).show();
+
+                            Toast.makeText(getContext(), "Loaded: " + savedProducts.size(), Toast.LENGTH_SHORT).show();
+
 
                             // Apply any existing search filter
                             String currentSearch = searchEditText.getText().toString().toLowerCase().trim();
